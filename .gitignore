@@ -42,3 +42,20 @@ htmlcov/
 .pyrightpy/
 .vscode/
 .idea/
+
+# Node / WXT (Extension)
+extention/node_modules/
+extention/.output/
+extention/.wxt/
+extention/stats.html
+extention/stats-*.json
+extention/web-ext.config.ts
+
+# General JS/TS
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.eslintcache
+.DS_Store

@@ -1,0 +1,131 @@
+.dashboardContainer {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--bg-primary, #090d16);
+  color: var(--text-primary, #ffffff);
+  font-family: inherit;
+}
+
+.dashboardHeader {
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.logo {
+  font-size: 16px;
+  font-weight: 800;
+  margin: 0;
+  background: linear-gradient(135deg, #a5b4fc 0%, #6366f1 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.logoBadge {
+  font-size: 9px;
+  font-weight: 900;
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  -webkit-text-fill-color: initial;
+}
+
+.dashboardNav {
+  display: flex;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(15, 23, 42, 0.2);
+}
+
+.navTab {
+  flex: 1;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary, #9ca3af);
+  padding: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+  text-align: center;
+}
+
+.navTab:hover {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.navTab.active {
+  color: var(--primary-light, #a5b4fc);
+  border-bottom-color: var(--primary-color, #6366f1);
+  background-color: rgba(99, 102, 241, 0.05);
+}
+
+.dashboardMain {
+  flex: 1;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.analyzerTabContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pollingStatusContainer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: var(--radius-md, 12px);
+  padding: 12px 16px;
+  margin-top: 8px;
+}
+
+.pulseLoader {
+  width: 12px;
+  height: 12px;
+  background-color: var(--primary-color, #6366f1);
+  border-radius: 50%;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+.pollingText {
+  font-size: 12px;
+  font-weight: 600;
+  color: #a5b4fc;
+}
+
+.fontSm {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.dashboardFooter {
+  padding: 12px;
+  text-align: center;
+  font-size: 9px;
+  color: var(--text-secondary, #4b5563);
+  border-top: 1px solid rgba(255, 255, 255, 0.03);
+  background: rgba(15, 23, 42, 0.2);
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.8); opacity: 0.5; }
+  50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 10px rgba(99, 102, 241, 0.5); }
+  100% { transform: scale(0.8); opacity: 0.5; }
+}

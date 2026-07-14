@@ -1,0 +1,177 @@
+.briefCardContainer {
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.8) 100%);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: var(--radius-lg, 16px);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  margin-top: 8px;
+}
+
+.cardHeader {
+  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  padding-bottom: 12px;
+}
+
+.statusBadge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
+}
+
+.cardTitle {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+  color: #ffffff;
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  padding-bottom: 12px;
+}
+
+.gridItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gridLabel {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary, #9ca3af);
+  text-transform: uppercase;
+}
+
+.gridValue {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f3f4f6;
+}
+
+.cardSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.labelSection {
+  font-size: 11px;
+  font-weight: 700;
+  color: #a5b4fc;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.labelWarning {
+  color: #fcd34d;
+}
+
+.badgesContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.badge {
+  font-size: 11px;
+  background-color: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm, 8px);
+}
+
+.noItemsText {
+  font-size: 12px;
+  color: var(--text-secondary, #9ca3af);
+  margin: 0;
+  font-style: italic;
+}
+
+.textGreen {
+  color: #34d399;
+  font-style: normal;
+}
+
+.risksContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.riskCard {
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-md, 12px);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.riskCardHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.riskSeverityBadge {
+  font-size: 8px;
+  font-weight: 800;
+  padding: 2px 5px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.severityHigh {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.severityMedium {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #fde047;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.severityLow {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.riskDesc {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #f3f4f6;
+}
+
+.riskMitigation {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-secondary, #9ca3af);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  padding-top: 6px;
+}
+
+.btnCopy {
+  margin-top: 8px;
+  font-size: 12px;
+  width: 100%;
+}
