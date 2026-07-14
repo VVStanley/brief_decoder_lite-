@@ -133,7 +133,7 @@ class FlakyLLMProvider(LLMProvider):
     async def analyze_brief(self, text: str) -> BriefAnalysisResponse:
         self.calls += 1
         if self.calls <= self.fail_count:
-            raise RuntimeError("Temporary API issue")
+            raise TimeoutError("Temporary API issue")
         # Return a valid mock response using FakeLLMProvider
         fake = FakeLLMProvider()
         return await fake.analyze_brief(text)
@@ -205,3 +205,37 @@ async def test_cleanup_service_zombie_tasks(db_session: AsyncSession):
     assert updated_brief.error_code == "TaskAbandoned"
     assert updated_brief.error_message == SAFE_ERRORS["TaskAbandoned"]
     assert updated_brief.finished_at is not None
+
+@pytest.mark.asyncio
+async def test_decode_brief_rate_limit_error(client: AsyncClient, app: FastAPI):
+    """Test that httpx.HTTPStatusError 429 is mapped to RateLimitError and safe message."""
+    import httpx
+    
+    class RateLimitedLLMProvider(LLMProvider):
+        async def analyze_brief(self, text: str) -> BriefAnalysisResponse:
+            request = httpx.Request("POST", "https://api.gemini.com/v1/models")
+            response = httpx.Response(status_code=429, request=request)
+            raise httpx.HTTPStatusError("Rate Limit Exceeded", request=request, response=response)
+
+    app.dependency_overrides[get_llm_provider] = lambda: RateLimitedLLMProvider()
+
+    try:
+        payload = {"text": "Some valid project brief text that meets length requirements."}
+        response = await client.post("/api/v1/briefs", json=payload)
+        assert response.status_code == 202
+        brief_id = response.json()["id"]
+
+        # Wait a bit for the background task to complete
+        run_data = {}
+        for _ in range(10):
+            await asyncio.sleep(0.1)
+            get_response = await client.get(f"/api/v1/briefs/{brief_id}")
+            run_data = get_response.json()
+            if run_data["status"] in ["completed", "failed"]:
+                break
+
+        assert run_data["status"] == "failed"
+        assert run_data["error_code"] == "RateLimitError"
+        assert run_data["error_message"] == SAFE_ERRORS["RateLimitError"]
+    finally:
+        app.dependency_overrides.clear()

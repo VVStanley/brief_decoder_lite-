@@ -21,38 +21,30 @@ class RetryingLLMProvider(LLMProvider):
         """Calls the underlying provider with configured timeout and linear retry logic."""
         for attempt in range(1, self.max_attempts + 1):
             try:
-                # Wrap the core call in asyncio.wait_for
                 return await asyncio.wait_for(
                     self.base_provider.analyze_brief(text),
                     timeout=self.timeout,
                 )
-            except (TimeoutError, Exception) as e:
-                current_err_code = e.__class__.__name__
-                if isinstance(e, asyncio.TimeoutError):
-                    current_err_code = "TimeoutError"
-
-                # Do not retry on validation errors (or if this is the final attempt)
-                is_retriable = not isinstance(e, ValidationError)
-
-                if not is_retriable or attempt == self.max_attempts:
+            except ValidationError as e:
+                if attempt == self.max_attempts:
                     logger.error(
-                        "LLM analysis failed permanently after %d attempts. Error: %s - %s",
+                        "LLM schema validation failed permanently after %d attempts: %s",
                         attempt,
-                        current_err_code,
                         e,
                     )
                     raise
+                logger.warning("LLM attempt %d failed with ValidationError. Retrying...", attempt)
 
-                delay = attempt  # Linear backoff delay: 1s, 2s, etc.
-                logger.warning(
-                    "LLM analysis attempt %d failed with %s: %s. Retrying in %ds...",
-                    attempt,
-                    current_err_code,
-                    e,
-                    delay,
-                )
-                await asyncio.sleep(delay)
+            except TimeoutError:
+                if attempt == self.max_attempts:
+                    logger.error("LLM timeout permanently after %d attempts.", attempt)
+                    raise
+                logger.warning("LLM attempt %d failed with TimeoutError. Retrying...", attempt)
 
-        # Fallback in case loop terminates without raising
-        # (though code above always raises or returns)
+            except Exception as e:
+                logger.error("LLM analysis failed permanently with non-retriable error: %s", e)
+                raise
+
+            await asyncio.sleep(attempt)
+
         raise RuntimeError("Retries exhausted without success")

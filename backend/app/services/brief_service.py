@@ -3,6 +3,7 @@ import logging
 import uuid
 from datetime import UTC, datetime
 
+import httpx
 import sentry_sdk
 
 from app.core.errors import SAFE_ERRORS
@@ -13,6 +14,26 @@ from app.repositories import BriefRepository
 from app.schemas.api import BriefRequest, BriefStatus, BriefUpdate
 
 logger = logging.getLogger("app.services.brief")
+
+
+def _map_exception(e: Exception) -> str:
+    """Maps various exceptions (httpx, asyncio, validation, etc.) to standardized error codes."""
+    if isinstance(e, asyncio.TimeoutError | TimeoutError | httpx.TimeoutException):
+        return "TimeoutError"
+
+    if isinstance(e, httpx.HTTPStatusError):
+        status = e.response.status_code
+        if status in (401, 403):
+            return "AuthenticationError"
+        if status == 429:
+            return "RateLimitError"
+        if status >= 500:
+            return "InternalServerError"
+
+    if isinstance(e, httpx.RequestError):
+        return "APIConnectionError"
+
+    return e.__class__.__name__
 
 
 class BriefService:
@@ -60,9 +81,7 @@ class BriefService:
                 error_message=None,
             )
         except Exception as e:
-            error_code = e.__class__.__name__
-            if isinstance(e, asyncio.TimeoutError):
-                error_code = "TimeoutError"
+            error_code = _map_exception(e)
             error_msg = str(e)
 
             logger.error(f"Brief ID: {brief_id} failed. Error: {error_code} - {error_msg}")
