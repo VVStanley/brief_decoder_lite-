@@ -1,0 +1,52 @@
+[tool.poetry]
+name = "brief-decoder-backend"
+version = "0.1.0"
+description = "FastAPI backend for AI Brief Decoder Lite"
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.111.0"
+uvicorn = {extras = ["standard"], version = "^0.30.1"}
+pydantic = "^2.7.4"
+pydantic-ai = "^0.0.18"
+polyfactory = "^2.16.2"
+sqlalchemy = {extras = ["asyncio"], version = "^2.0.31"}
+asyncpg = "^0.29.0"
+alembic = "^1.13.1"
+dynaconf = "^3.2.5"
+python-dotenv = "^1.0.1"
+sentry-sdk = { extras = ["fastapi"], version = "^2.8.0" }
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2.2"
+pytest-asyncio = "^0.23.7"
+httpx = "^0.27.0"
+ruff = "^0.4.10"
+pyright = "^1.1.368"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 99
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "C4", "RUF"]
+ignore = [
+    "N802",    # Allow uppercase function names (for Dynaconf config properties)
+    "RUF001",  # Allow cyrillic characters in strings
+    "B008",    # Allow function calls in argument defaults (standard for FastAPI Depends)
+]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true

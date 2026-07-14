@@ -1,0 +1,22 @@
+[default]
+DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/brief_decoder"
+LLM_PROVIDER = "fake"
+GEMINI_API_KEY = ""
+GEMINI_MODEL = "gemini-flash-latest"
+SENTRY_DSN = ""
+SENTRY_TRACES_SAMPLE_RATE = 1.0
+LLM_MAX_ATTEMPTS = 3
+LLM_TIMEOUT = 45.0
+CLEANUP_TIMEOUT_MINUTES = 3
+
+[local]
+# Local overrides inherit from default
+
+[testing]
+DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/brief_decoder_test"
+LLM_PROVIDER = "fake"
+
+[production]
+# In production, we expect variables to be provided via environment variables:
+# APP_DATABASE_URL, APP_LLM_PROVIDER, APP_GEMINI_API_KEY
+LLM_PROVIDER = "gemini"

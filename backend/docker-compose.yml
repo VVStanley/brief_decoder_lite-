@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: brief_decoder_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: brief_decoder
+    ports:
+      - "5432:5432"
+    volumes:
+      - brief_decoder_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  brief_decoder_postgres_data:
