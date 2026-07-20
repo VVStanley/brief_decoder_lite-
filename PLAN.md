@@ -31,7 +31,7 @@
   - Создать фабричную зависимость FastAPI `get_brief_service` для внедрения зависимостей (`BriefRepository` и `LLMProvider`).
   - В роутерах (`app/api/v1/briefs.py`) заменить ручной вызов `service = BriefService(repo, provider)` на внедрение через `Depends(get_brief_service)`.
 
-- [ ] **7. Переработка декоратора ретраев (`RetryingLLMProvider`) с использованием `tenacity`**
+- [x] **7. Переработка декоратора ретраев (`RetryingLLMProvider`) с использованием `tenacity`**
   - Установить библиотеку `tenacity` (`poetry add tenacity`).
   - Переписать логику повторных попыток в `RetryingLLMProvider` с использованием `AsyncRetrying`, настроек задержек (`wait_exponential` / `wait_fixed`) и логгера событий.
 

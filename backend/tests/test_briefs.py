@@ -207,6 +207,67 @@ async def test_decode_brief_retry_success(client: AsyncClient, app: FastAPI):
 
 
 @pytest.mark.asyncio
+async def test_retrying_llm_provider_unit_scenarios():
+    """Unit tests verifying RetryingLLMProvider handles retries and non-retriable errors."""
+    from app.core.providers.retry import RetryingLLMProvider
+
+    # 1. Test ValidationError retry success
+    class ValidationFlakyProvider(LLMProvider):
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def analyze_brief(self, text: str) -> BriefAnalysisResponse:
+            self.calls += 1
+            if self.calls == 1:
+                raise ValidationError.from_exception_data(
+                    title="MockValidation", line_errors=[]
+                )
+            return await FakeLLMProvider().analyze_brief(text)
+
+    flaky = ValidationFlakyProvider()
+    retry_provider = RetryingLLMProvider(
+        base_provider=flaky, max_attempts=3, timeout=5.0
+    )
+    res = await retry_provider.analyze_brief("test")
+    assert flaky.calls == 2
+    assert res is not None
+
+    # 2. Test retries exhausted on TimeoutError
+    class AlwaysTimeoutProvider(LLMProvider):
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def analyze_brief(self, text: str) -> BriefAnalysisResponse:
+            self.calls += 1
+            raise TimeoutError("Persistent API timeout")
+
+    always_timeout = AlwaysTimeoutProvider()
+    retry_timeout_provider = RetryingLLMProvider(
+        base_provider=always_timeout, max_attempts=2, timeout=5.0
+    )
+    with pytest.raises(TimeoutError):
+        await retry_timeout_provider.analyze_brief("test")
+    assert always_timeout.calls == 2
+
+    # 3. Test non-retriable exception fails immediately on attempt 1
+    class NonRetriableProvider(LLMProvider):
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def analyze_brief(self, text: str) -> BriefAnalysisResponse:
+            self.calls += 1
+            raise RuntimeError("Fatal database connection drop")
+
+    non_retriable = NonRetriableProvider()
+    retry_non_retriable = RetryingLLMProvider(
+        base_provider=non_retriable, max_attempts=3, timeout=5.0
+    )
+    with pytest.raises(RuntimeError, match="Fatal database connection drop"):
+        await retry_non_retriable.analyze_brief("test")
+    assert non_retriable.calls == 1  # No retries executed
+
+
+@pytest.mark.asyncio
 async def test_cleanup_service_zombie_tasks(db_session: AsyncSession):
     """Test that CleanupService fails tasks that are stuck in 'processing' status."""
     from datetime import UTC, datetime, timedelta
