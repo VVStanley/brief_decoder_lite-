@@ -177,13 +177,14 @@ async def test_cleanup_service_zombie_tasks(db_session: AsyncSession):
     from datetime import UTC, datetime, timedelta
 
     from app.models.brief import Brief
+    from app.schemas.api import BriefStatus
     from app.services.cleanup_service import CleanupService
 
     # 1. Create a zombie brief manually in the DB
     old_time = datetime.now(UTC) - timedelta(minutes=5)
     zombie = Brief(
         input_text="Test zombie brief text that is long enough.",
-        status="processing",
+        status=BriefStatus.PROCESSING.value,
         started_at=old_time,
     )
     db_session.add(zombie)
@@ -201,7 +202,7 @@ async def test_cleanup_service_zombie_tasks(db_session: AsyncSession):
     result = await db_session.execute(stmt)
     updated_brief = result.scalar_one()
 
-    assert updated_brief.status == "failed"
+    assert updated_brief.status == BriefStatus.FAILED.value
     assert updated_brief.error_code == "TaskAbandoned"
     assert updated_brief.error_message == SAFE_ERRORS["TaskAbandoned"]
     assert updated_brief.finished_at is not None
