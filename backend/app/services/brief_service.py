@@ -5,12 +5,13 @@ from datetime import UTC, datetime
 
 import httpx
 import sentry_sdk
+from fastapi import Depends
 
 from app.core.errors import SAFE_ERRORS
 from app.core.exceptions import BriefNotFoundError
-from app.core.providers import LLMProvider
+from app.core.providers import LLMProvider, get_llm_provider
 from app.models.brief import Brief
-from app.repositories import BriefRepository
+from app.repositories import BriefRepository, get_brief_repository
 from app.schemas.api import BriefRequest, BriefStatus, BriefUpdate
 
 logger = logging.getLogger("app.services.brief")
@@ -105,3 +106,11 @@ class BriefService:
         """Retrieves a brief run from the database by its ID."""
         async with self.repo as r:
             return await r.get(brief_id)
+
+
+def get_brief_service(
+    repo: BriefRepository = Depends(get_brief_repository),
+    provider: LLMProvider = Depends(get_llm_provider),
+) -> BriefService:
+    """Factory dependency to instantiate BriefService with its repository and provider."""
+    return BriefService(repo, provider)

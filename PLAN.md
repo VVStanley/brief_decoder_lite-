@@ -27,7 +27,7 @@
 - [x] **5. Кеширование `get_llm_provider` через `@lru_cache`**
   - В `backend/app/core/providers/__init__.py` обернуть фабрику `get_llm_provider()` декоратором `@lru_cache()` для предотвращения повторной инициализации клиента и моделей Gemini на каждый запрос.
 
-- [ ] **6. Вынос инициализации `BriefService` из API-роутеров (DI)**
+- [x] **6. Вынос инициализации `BriefService` из API-роутеров (DI)**
   - Создать фабричную зависимость FastAPI `get_brief_service` для внедрения зависимостей (`BriefRepository` и `LLMProvider`).
   - В роутерах (`app/api/v1/briefs.py`) заменить ручной вызов `service = BriefService(repo, provider)` на внедрение через `Depends(get_brief_service)`.
 
