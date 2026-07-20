@@ -12,7 +12,7 @@
   - В `backend/app/repositories/brief.py`: заменить `status="pending"` на `status=BriefStatus.PENDING.value`.
   - В `backend/app/services/cleanup_service.py`: заменить `"processing"` и `"failed"` на `BriefStatus.PROCESSING.value` и `BriefStatus.FAILED.value`.
 
-- [ ] **3. Аудит и проверка `BriefAnalysisResponse` на соответствие ТЗ**
+- [x] **3. Аудит и проверка `BriefAnalysisResponse` на соответствие ТЗ**
   - Проверить структуру схемы ответа `BriefAnalysisResponse` (`project_type`, `budget_info`, `deadline_info`, `key_requirements`, `risks`), системный промпт (`prompts.py`) и типы на фронтенде (`contracts.ts`).
   - Устранить любые несоответствия или расхождения между ТЗ, Pydantic-схемой и моками в `polyfactory`.
 

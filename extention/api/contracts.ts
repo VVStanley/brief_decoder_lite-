@@ -74,30 +74,40 @@ export interface components {
          */
         BriefAnalysisResponse: {
             /**
-             * Project Type
-             * @description Main type or domain of the project
+             * Summary
+             * @description Short normalized summary of the client request
              */
-            project_type: string;
+            summary: string;
             /**
-             * Budget Info
-             * @description Budget description, limits, or constraints mentioned in the brief
+             * Goals
+             * @description List of project goals
              */
-            budget_info?: string | null;
+            goals?: string[];
             /**
-             * Deadline Info
-             * @description Deadline, milestones, or timeline constraints mentioned in the brief
+             * Deliverables
+             * @description List of expected deliverables or artifacts
              */
-            deadline_info?: string | null;
+            deliverables?: string[];
             /**
-             * Key Requirements
-             * @description List of key requirements extracted from the brief
+             * Constraints
+             * @description List of project constraints (time, budget, etc.)
              */
-            key_requirements?: string[];
+            constraints?: string[];
             /**
              * Risks
-             * @description List of identified risks with their severity and mitigation strategies
+             * @description List of identified risks with their severity and reason
              */
             risks?: components["schemas"]["RiskItem"][];
+            /**
+             * Clarifying Questions
+             * @description List of clarifying questions for the client
+             */
+            clarifying_questions?: string[];
+            /**
+             * Recommended Next Action
+             * @description Recommended next step or action
+             */
+            recommended_next_action: string;
         };
         /**
          * BriefRequest
@@ -165,17 +175,17 @@ export interface components {
         /** RiskItem */
         RiskItem: {
             /**
-             * Description
+             * Risk
              * @description Description of the identified risk
              */
-            description: string;
+            risk: string;
             /** @description Severity level of the risk */
             severity: components["schemas"]["SeverityEnum"];
             /**
-             * Mitigation
-             * @description Suggested way to mitigate or minimize the risk
+             * Reason
+             * @description Reason or justification for the identified risk
              */
-            mitigation: string;
+            reason: string;
         };
         /**
          * SeverityEnum

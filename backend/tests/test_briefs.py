@@ -31,10 +31,33 @@ def test_risk_item_invalid_severity():
     """Ensure RiskItem validation fails for invalid severity values."""
     with pytest.raises(ValidationError):
         RiskItem(
-            description="Test Risk",
+            risk="Test Risk",
             severity=cast(SeverityEnum, "critical"),  # Not in SeverityEnum
-            mitigation="Test Mitigation",
+            reason="Test Reason",
         )
+
+
+def test_brief_analysis_response_validation_missing_required_fields():
+    """Ensure BriefAnalysisResponse fails when required fields are missing."""
+    with pytest.raises(ValidationError):
+        BriefAnalysisResponse.model_validate({"goals": ["Goal 1"]})
+
+
+def test_brief_analysis_response_validation_invalid_risk_severity_in_risks_list():
+    """Ensure BriefAnalysisResponse fails when a risk in the risks list has invalid severity."""
+    payload = {
+        "summary": "Valid summary",
+        "recommended_next_action": "Do something",
+        "risks": [
+            {
+                "risk": "Some Risk",
+                "severity": "fatal",  # Invalid severity
+                "reason": "Some reason",
+            }
+        ],
+    }
+    with pytest.raises(ValidationError):
+        BriefAnalysisResponse.model_validate(payload)
 
 
 # =====================================================================
@@ -78,9 +101,12 @@ async def test_decode_brief_success(client: AsyncClient, app: FastAPI):
         run_data = get_response.json()
         assert run_data["status"] == "completed"
         assert run_data["structured_result"] is not None
-        assert isinstance(run_data["structured_result"]["project_type"], str)
-        assert len(run_data["structured_result"]["project_type"]) > 0
+        assert isinstance(run_data["structured_result"]["summary"], str)
+        assert len(run_data["structured_result"]["summary"]) > 0
+        assert len(run_data["structured_result"]["goals"]) > 0
+        assert len(run_data["structured_result"]["deliverables"]) > 0
         assert len(run_data["structured_result"]["risks"]) > 0
+        assert isinstance(run_data["structured_result"]["recommended_next_action"], str)
         assert run_data["error_code"] is None
         assert run_data["error_message"] is None
     finally:
@@ -238,5 +264,36 @@ async def test_decode_brief_rate_limit_error(client: AsyncClient, app: FastAPI):
         assert run_data["status"] == "failed"
         assert run_data["error_code"] == "RateLimitError"
         assert run_data["error_message"] == SAFE_ERRORS["RateLimitError"]
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_decode_brief_validation_error_handling(client: AsyncClient, app: FastAPI):
+    """Test that when LLM output raises ValidationError, it maps to a safe failed state."""
+    class MalformedLLMProvider(LLMProvider):
+        async def analyze_brief(self, text: str) -> BriefAnalysisResponse:
+            # Simulate raising Pydantic ValidationError when LLM returns malformed JSON
+            return BriefAnalysisResponse.model_validate({"invalid_field": "no summary"})
+
+    app.dependency_overrides[get_llm_provider] = lambda: MalformedLLMProvider()
+
+    try:
+        payload = {"text": "Some valid project brief text that meets length requirements."}
+        response = await client.post("/api/v1/briefs", json=payload)
+        assert response.status_code == 202
+        brief_id = response.json()["id"]
+
+        run_data = {}
+        for _ in range(10):
+            await asyncio.sleep(0.1)
+            get_response = await client.get(f"/api/v1/briefs/{brief_id}")
+            run_data = get_response.json()
+            if run_data["status"] in ["completed", "failed"]:
+                break
+
+        assert run_data["status"] == "failed"
+        assert run_data["error_code"] == "ValidationError"
+        assert run_data["error_message"] == SAFE_ERRORS["ValidationError"]
     finally:
         app.dependency_overrides.clear()

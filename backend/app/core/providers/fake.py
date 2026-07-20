@@ -12,8 +12,8 @@ class RiskItemFactory(ModelFactory[RiskItem]):
     __model__ = RiskItem
 
     @classmethod
-    def description(cls) -> str:
-        descriptions = [
+    def risk(cls) -> str:
+        risks = [
             "Отсутствие технического задания (ТЗ)",
             "Интеграция с внешними платежными шлюзами",
             "Высокая нагрузка на сервер в пиковые часы",
@@ -21,68 +21,93 @@ class RiskItemFactory(ModelFactory[RiskItem]):
             "Проблемы с интеграцией устаревших (legacy) систем",
             "Сложность синхронизации данных в реальном времени",
         ]
-        return random.choice(descriptions)
+        return random.choice(risks)
 
     @classmethod
     def severity(cls) -> SeverityEnum:
         return random.choice(list(SeverityEnum))
 
     @classmethod
-    def mitigation(cls) -> str:
-        mitigations = [
-            "Провести серию встреч и составить подробное ТЗ перед написанием кода.",
-            "Использовать проверенные готовые SDK (ЮKassa, Сбербанк) и заложить время на тесты.",
-            "Настроить горизонтальное масштабирование и кэширование запросов.",
-            "Разработать MVP с минимальным набором функций для быстрого запуска.",
-            "Спроектировать сбалансированный слой адаптеров и провести нагрузочные тесты интеграции.",
-            "Использовать брокеры сообщений (Redis/RabbitMQ) для надежной очереди задач.",
+    def reason(cls) -> str:
+        reasons = [
+            "В брифе не описаны детальные требования к архитектуре и интеграциям.",
+            "Сторонний платежный шлюз может иметь нестабильный API и задержки в обработке транзакций.",
+            "В пиковые часы количество одновременных запросов может превысить базовую емкость сервера.",
+            "Установленный дедлайн требует высокой параллелизации задач без права на задержку.",
+            "Существующие устаревшие системы не поддерживают современные REST/gRPC протоколы.",
+            "Высокий поток событий может приводить к рассинхронизации состояния клиентов.",
         ]
-        return random.choice(mitigations)
+        return random.choice(reasons)
 
 
 class BriefAnalysisResponseFactory(ModelFactory[BriefAnalysisResponse]):
     __model__ = BriefAnalysisResponse
 
     @classmethod
-    def project_type(cls) -> str:
-        project_types = [
-            "Интернет-магазин одежды",
-            "Мобильное приложение доставки еды",
-            "CRM-система для управления продажами",
-            "Социальная сеть для совместных поездок",
-            "ERP-система автоматизации логистики",
-            "Платформа онлайн-обучения",
+    def summary(cls) -> str:
+        summaries = [
+            "Разработка B2B SaaS аналитической платформы с интерактивным дашбордом и сбором лидов.",
+            "Создание мобильного приложения для заказа и доставки еды с интеграцией онлайн-оплаты.",
+            "Внедрение корпоративной CRM-системы для автоматизации воронки продаж и отчетности.",
+            "Запуск интернет-магазина одежды с фильтрацией каталога и личным кабинетом.",
         ]
-        return random.choice(project_types)
+        return random.choice(summaries)
 
     @classmethod
-    def budget_info(cls) -> str:
-        return f"{random.randint(150, 950)} тыс. рублей"
-
-    @classmethod
-    def deadline_info(cls) -> str:
-        return f"{random.randint(2, 6)} месяца"
-
-    @classmethod
-    def key_requirements(cls) -> list[str]:
-        requirements_pool = [
-            "Каталог товаров с умной фильтрацией и поиском",
-            "Корзина товаров и интеграция онлайн-оплаты (СБП/карты)",
-            "Личный кабинет пользователя с историей и избранным",
-            "Интерактивная карта для выбора адреса доставки",
-            "Система push-уведомлений о статусе заказа",
-            "Панель администратора для управления товарами и заказами",
-            "Интеграция с 1С для синхронизации остатков на складе",
-            "Канбан-доска для сделок и воронки продаж",
-            "Генерация PDF-отчетов об активности пользователей",
+    def goals(cls) -> list[str]:
+        goals_pool = [
+            "Повысить конверсию посетителей в зарегистрированных пользователей",
+            "Сократить время обработки клиентских заявок",
+            "Увеличить средний чек за счет умных рекомендаций",
+            "Обеспечить прозрачную аналитику по всем маркетинговым каналам",
+            "Автоматизировать рутинные операции менеджеров по продажам",
         ]
-        # Choose 3 to 5 random requirements
-        return random.sample(requirements_pool, k=random.randint(3, 5))
+        return random.sample(goals_pool, k=random.randint(2, 4))
+
+    @classmethod
+    def deliverables(cls) -> list[str]:
+        deliverables_pool = [
+            "Адаптивный Landing Page с тизером тарифов",
+            "Модуль сбора e-mail адресов и интеграция с CRM",
+            "Панель администрирования для управления контентом",
+            "Интерактивный дашборд с графиками активности",
+            "Базовая SEO-оптимизация и разметка микроданных",
+        ]
+        return random.sample(deliverables_pool, k=random.randint(2, 4))
+
+    @classmethod
+    def constraints(cls) -> list[str]:
+        constraints_pool = [
+            "Жесткий дедлайн: готовность через 2 недели",
+            "Ограниченный фиксированный бюджет на разработку",
+            "Обязательное использование React и TypeScript",
+            "Интеграция с существующей legacy-базой данных",
+        ]
+        return random.sample(constraints_pool, k=random.randint(1, 3))
 
     @classmethod
     def risks(cls) -> list[RiskItem]:
-        # Generate 1 to 3 risks using RiskItemFactory
         return [RiskItemFactory.build() for _ in range(random.randint(1, 3))]
+
+    @classmethod
+    def clarifying_questions(cls) -> list[str]:
+        questions_pool = [
+            "Какой сервис рассылок или CRM планируется использовать для сбора e-mail?",
+            "У вас уже есть готовый брендбук, логотип и тексты для страниц?",
+            "Потребуется ли мультиязычность в первой версии продукта?",
+            "Какие ключевые метрики вы планируете отслеживать в аналитике?",
+        ]
+        return random.sample(questions_pool, k=random.randint(2, 3))
+
+    @classmethod
+    def recommended_next_action(cls) -> str:
+        actions = [
+            "Согласовать структуру Landing Page и провести встречу с дизайнером для создания прототипа.",
+            "Утвердить техническое задание на интеграцию с платежными шлюзами и CRM.",
+            "Подготовить тестовое окружение и доступы к API сторонних сервисов.",
+            "Разработать MVP с минимальным набором функций для проверки гипотезы за 2 недели.",
+        ]
+        return random.choice(actions)
 
 
 class FakeLLMProvider(LLMProvider):

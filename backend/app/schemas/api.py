@@ -26,31 +26,30 @@ class BriefStatus(str, Enum):
 
 
 class RiskItem(BaseModel):
-    description: str = Field(..., description="Description of the identified risk")
+    risk: str = Field(..., description="Description of the identified risk")
     severity: SeverityEnum = Field(..., description="Severity level of the risk")
-    mitigation: str = Field(..., description="Suggested way to mitigate or minimize the risk")
+    reason: str = Field(..., description="Reason or justification for the identified risk")
 
 
 class BriefAnalysisResponse(BaseModel):
     """The structured output format returned by the AI provider."""
 
-    project_type: str = Field(..., description="Main type or domain of the project")
-    budget_info: str | None = Field(
-        None,
-        description="Budget description, limits, or constraints mentioned in the brief",
+    summary: str = Field(..., description="Short normalized summary of the client request")
+    goals: list[str] = Field(default_factory=list, description="List of project goals")
+    deliverables: list[str] = Field(
+        default_factory=list, description="List of expected deliverables or artifacts"
     )
-    deadline_info: str | None = Field(
-        None,
-        description="Deadline, milestones, or timeline constraints mentioned in the brief",
-    )
-    key_requirements: list[str] = Field(
-        default_factory=list,
-        description="List of key requirements extracted from the brief",
+    constraints: list[str] = Field(
+        default_factory=list, description="List of project constraints (time, budget, etc.)"
     )
     risks: list[RiskItem] = Field(
         default_factory=list,
-        description="List of identified risks with their severity and mitigation strategies",
+        description="List of identified risks with their severity and reason",
     )
+    clarifying_questions: list[str] = Field(
+        default_factory=list, description="List of clarifying questions for the client"
+    )
+    recommended_next_action: str = Field(..., description="Recommended next step or action")
 
 
 class BriefRequest(BaseModel):
