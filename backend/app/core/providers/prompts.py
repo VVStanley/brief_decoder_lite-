@@ -33,3 +33,27 @@ SYSTEM_PROMPT = """Ты — высококлассный ИТ-архитекто
 # ТРЕБОВАНИЯ К ФОРМАТУ ОТВЕТА:
 - Отвечай строго валидным JSON, структура которого в точности соответствует Pydantic-схеме `BriefAnalysisResponse`.
 - Не добавляй никаких комментариев, вводных слов или рассуждений вне структуры JSON."""
+
+
+def format_correction_prompt(text: str, correction_context: str | None = None) -> str:
+    """Formats the input prompt for LLM analysis, including self-correction context if provided.
+
+    Args:
+        text: Raw text of the client brief.
+        correction_context: Optional validation error details from a previous failed attempt.
+
+    Returns:
+        Formatted prompt string ready to be sent to any LLM provider.
+    """
+    if not correction_context:
+        return text
+
+    return (
+        f"{text}\n\n"
+        f"# ВНИМАНИЕ — ТРЕБУЕТСЯ КОРРЕКЦИЯ ПРЕДЫДУЩЕГО ОТВЕТА:\n"
+        f"При предыдущей попытке генерации ваш ответ не прошел проверку схемы JSON.\n"
+        f"{correction_context}\n"
+        f"Пожалуйста, исправьте ошибки формата и верните валидный JSON, "
+        f"строго соответствующий схеме."
+    )
+

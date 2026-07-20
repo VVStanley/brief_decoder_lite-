@@ -77,7 +77,9 @@ def test_get_llm_provider_caching():
 class ErrorLLMProvider(LLMProvider):
     """LLM provider simulation that always raises an error."""
 
-    async def analyze_brief(self, text: str) -> BriefAnalysisResponse:
+    async def analyze_brief(
+        self, text: str, correction_context: str | None = None
+    ) -> BriefAnalysisResponse:
         raise RuntimeError("LLM service unavailable")
 
 
@@ -165,13 +167,15 @@ class FlakyLLMProvider(LLMProvider):
         self.fail_count = fail_count
         self.calls = 0
 
-    async def analyze_brief(self, text: str) -> BriefAnalysisResponse:
+    async def analyze_brief(
+        self, text: str, correction_context: str | None = None
+    ) -> BriefAnalysisResponse:
         self.calls += 1
         if self.calls <= self.fail_count:
             raise TimeoutError("Temporary API issue")
         # Return a valid mock response using FakeLLMProvider
         fake = FakeLLMProvider()
-        return await fake.analyze_brief(text)
+        return await fake.analyze_brief(text, correction_context=correction_context)
 
 
 @pytest.mark.asyncio
@@ -216,13 +220,19 @@ async def test_retrying_llm_provider_unit_scenarios():
         def __init__(self) -> None:
             self.calls = 0
 
-        async def analyze_brief(self, text: str) -> BriefAnalysisResponse:
+        async def analyze_brief(
+            self, text: str, correction_context: str | None = None
+        ) -> BriefAnalysisResponse:
             self.calls += 1
             if self.calls == 1:
                 raise ValidationError.from_exception_data(
                     title="MockValidation", line_errors=[]
                 )
-            return await FakeLLMProvider().analyze_brief(text)
+            assert correction_context is not None
+            assert "MockValidation" in correction_context
+            return await FakeLLMProvider().analyze_brief(
+                text, correction_context=correction_context
+            )
 
     flaky = ValidationFlakyProvider()
     retry_provider = RetryingLLMProvider(
@@ -237,7 +247,9 @@ async def test_retrying_llm_provider_unit_scenarios():
         def __init__(self) -> None:
             self.calls = 0
 
-        async def analyze_brief(self, text: str) -> BriefAnalysisResponse:
+        async def analyze_brief(
+            self, text: str, correction_context: str | None = None
+        ) -> BriefAnalysisResponse:
             self.calls += 1
             raise TimeoutError("Persistent API timeout")
 
@@ -254,7 +266,9 @@ async def test_retrying_llm_provider_unit_scenarios():
         def __init__(self) -> None:
             self.calls = 0
 
-        async def analyze_brief(self, text: str) -> BriefAnalysisResponse:
+        async def analyze_brief(
+            self, text: str, correction_context: str | None = None
+        ) -> BriefAnalysisResponse:
             self.calls += 1
             raise RuntimeError("Fatal database connection drop")
 
@@ -334,7 +348,9 @@ async def test_decode_brief_rate_limit_error(client: AsyncClient, app: FastAPI):
     import httpx
     
     class RateLimitedLLMProvider(LLMProvider):
-        async def analyze_brief(self, text: str) -> BriefAnalysisResponse:
+        async def analyze_brief(
+            self, text: str, correction_context: str | None = None
+        ) -> BriefAnalysisResponse:
             request = httpx.Request("POST", "https://api.gemini.com/v1/models")
             response = httpx.Response(status_code=429, request=request)
             raise httpx.HTTPStatusError("Rate Limit Exceeded", request=request, response=response)
@@ -367,7 +383,9 @@ async def test_decode_brief_rate_limit_error(client: AsyncClient, app: FastAPI):
 async def test_decode_brief_validation_error_handling(client: AsyncClient, app: FastAPI):
     """Test that when LLM output raises ValidationError, it maps to a safe failed state."""
     class MalformedLLMProvider(LLMProvider):
-        async def analyze_brief(self, text: str) -> BriefAnalysisResponse:
+        async def analyze_brief(
+            self, text: str, correction_context: str | None = None
+        ) -> BriefAnalysisResponse:
             # Simulate raising Pydantic ValidationError when LLM returns malformed JSON
             return BriefAnalysisResponse.model_validate({"invalid_field": "no summary"})
 
@@ -414,3 +432,31 @@ async def test_run_background_brief_decode_exception_logging(monkeypatch: pytest
     assert len(captured_exceptions) == 1
     assert isinstance(captured_exceptions[0], RuntimeError)
     assert str(captured_exceptions[0]) == "Fatal database disconnect inside background task"
+
+
+@pytest.mark.asyncio
+async def test_llm_self_correction_on_validation_error():
+    """Test that RetryingLLMProvider passes previous ValidationError to base provider."""
+    class SelfCorrectingProvider(LLMProvider):
+        def __init__(self) -> None:
+            self.calls = 0
+            self.correction_received: str | None = None
+
+        async def analyze_brief(
+            self, text: str, correction_context: str | None = None
+        ) -> BriefAnalysisResponse:
+            self.calls += 1
+            if self.calls == 1:
+                raise ValidationError.from_exception_data(
+                    title="SelfCorrectionTest", line_errors=[]
+                )
+            self.correction_received = correction_context
+            return await FakeLLMProvider().analyze_brief(text)
+
+    provider = SelfCorrectingProvider()
+    retrying = RetryingLLMProvider(base_provider=provider, max_attempts=3, timeout=5.0)
+    res = await retrying.analyze_brief("Test brief text")
+    assert provider.calls == 2
+    assert provider.correction_received is not None
+    assert "SelfCorrectionTest" in provider.correction_received
+    assert res is not None

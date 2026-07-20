@@ -4,12 +4,12 @@ from pydantic_ai import Agent
 from pydantic_ai.models.gemini import GeminiModel
 
 from app.core.config import settings
-from app.core.providers.base import LLMProvider
+from app.core.providers.base import BaseAgentLLMProvider
 from app.core.providers.prompts import SYSTEM_PROMPT
 from app.schemas import BriefAnalysisResponse
 
 
-class GeminiLLMProvider(LLMProvider):
+class GeminiLLMProvider(BaseAgentLLMProvider):
     """Real LLM provider using Google Gemini and PydanticAI."""
 
     def __init__(self) -> None:
@@ -23,6 +23,3 @@ class GeminiLLMProvider(LLMProvider):
             system_prompt=SYSTEM_PROMPT,
         )
 
-    async def analyze_brief(self, text: str) -> BriefAnalysisResponse:
-        result = await self.agent.run(text)
-        return result.data

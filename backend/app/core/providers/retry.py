@@ -24,8 +24,11 @@ class RetryingLLMProvider(LLMProvider):
         self.max_attempts = max_attempts
         self.timeout = timeout
 
-    async def analyze_brief(self, text: str) -> BriefAnalysisResponse:
+    async def analyze_brief(
+        self, text: str, correction_context: str | None = None
+    ) -> BriefAnalysisResponse:
         """Calls the underlying provider with timeout and retry backoff via tenacity."""
+        current_correction_context = correction_context
         retrying = AsyncRetrying(
             stop=stop_after_attempt(self.max_attempts),
             wait=wait_exponential(multiplier=1, min=1, max=10),
@@ -35,8 +38,16 @@ class RetryingLLMProvider(LLMProvider):
         )
         async for attempt in retrying:
             with attempt:
-                return await asyncio.wait_for(
-                    self.base_provider.analyze_brief(text),
-                    timeout=self.timeout,
-                )
+                try:
+                    return await asyncio.wait_for(
+                        self.base_provider.analyze_brief(
+                            text, correction_context=current_correction_context
+                        ),
+                        timeout=self.timeout,
+                    )
+                except ValidationError as e:
+                    current_correction_context = (
+                        f"Ошибка валидации Pydantic ValidationError:\n{e}"
+                    )
+                    raise
         raise RuntimeError("Retries exhausted without success")

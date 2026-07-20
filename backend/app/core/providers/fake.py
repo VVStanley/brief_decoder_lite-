@@ -113,9 +113,13 @@ class BriefAnalysisResponseFactory(ModelFactory[BriefAnalysisResponse]):
 class FakeLLMProvider(LLMProvider):
     """A fake mock provider that returns a realistic dynamic brief analysis using Pydantic factories."""
 
-    async def analyze_brief(self, text: str) -> BriefAnalysisResponse:
+    async def analyze_brief(
+        self, text: str, correction_context: str | None = None
+    ) -> BriefAnalysisResponse:
         # Seed random with text hash to ensure that the same input always returns the same result
         seed_val = int(hashlib.md5(text.encode("utf-8")).hexdigest(), 16)
+        if correction_context:
+            seed_val ^= int(hashlib.md5(correction_context.encode("utf-8")).hexdigest(), 16)
         random.seed(seed_val)
 
         # Build response using factory

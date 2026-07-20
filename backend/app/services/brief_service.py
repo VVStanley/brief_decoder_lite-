@@ -59,15 +59,13 @@ class BriefService:
 
     async def decode_and_update_brief(self, brief_id: uuid.UUID) -> Brief:
         """Calls the LLM provider to analyze the brief and updates the run status in the DB."""
-        # 1. Fetch from repository to get input text
+        # 1. Fetch from repository and update status to 'processing' in a single transaction
         async with self.repo as r:
             db_brief = await r.get(brief_id)
             if not db_brief:
                 raise BriefNotFoundError(brief_id)
             input_text = db_brief.input_text
 
-        # 2. Update status to 'processing' and set started_at timing
-        async with self.repo as r:
             await r.update(
                 brief_id,
                 BriefUpdate(
