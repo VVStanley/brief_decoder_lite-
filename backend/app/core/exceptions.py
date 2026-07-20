@@ -20,3 +20,10 @@ class RepositoryContextError(BriefDecoderError):
 
     def __init__(self, message: str = "Repository context not entered") -> None:
         super().__init__(message)
+
+
+class BriefInputValidationError(BriefDecoderError, ValueError):
+    """Raised when brief input text fails validation (spam, gibberish, lack of words)."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)

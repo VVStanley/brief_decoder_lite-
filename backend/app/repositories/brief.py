@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.core.exceptions import BriefNotFoundError, RepositoryContextError
 from app.models.brief import Brief
 from app.repositories.base import BriefRepository
-from app.schemas.api import BriefUpdate
+from app.schemas.api import BriefStatus, BriefUpdate
 
 
 class SQLAlchemyBriefRepository(BriefRepository):
@@ -41,7 +41,7 @@ class SQLAlchemyBriefRepository(BriefRepository):
     async def create(self, text: str) -> Brief:
         if not self.session:
             raise RepositoryContextError()
-        db_brief = Brief(input_text=text, status="pending")
+        db_brief = Brief(input_text=text, status=BriefStatus.PENDING.value)
         self.session.add(db_brief)
         await self.session.flush()
         return db_brief

@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.core.errors import SAFE_ERRORS
 from app.db.session import async_session
 from app.models.brief import Brief
+from app.schemas.api import BriefStatus
 
 logger = logging.getLogger("app.cleanup")
 
@@ -28,10 +29,10 @@ class CleanupService:
                 # Update abandoned briefs and get their IDs
                 stmt = (
                     update(Brief)
-                    .where(Brief.status == "processing")
+                    .where(Brief.status == BriefStatus.PROCESSING.value)
                     .where(Brief.started_at < cutoff_time)
                     .values(
-                        status="failed",
+                        status=BriefStatus.FAILED.value,
                         finished_at=datetime.now(UTC),
                         error_code="TaskAbandoned",
                         error_message=SAFE_ERRORS["TaskAbandoned"],

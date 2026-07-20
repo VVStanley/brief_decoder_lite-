@@ -1,4 +1,5 @@
 import asyncio
+import uuid
 from typing import cast
 
 import pytest
@@ -31,10 +32,33 @@ def test_risk_item_invalid_severity():
     """Ensure RiskItem validation fails for invalid severity values."""
     with pytest.raises(ValidationError):
         RiskItem(
-            description="Test Risk",
+            risk="Test Risk",
             severity=cast(SeverityEnum, "critical"),  # Not in SeverityEnum
-            mitigation="Test Mitigation",
+            reason="Test Reason",
         )
+
+
+def test_brief_analysis_response_validation_missing_required_fields():
+    """Ensure BriefAnalysisResponse fails when required fields are missing."""
+    with pytest.raises(ValidationError):
+        BriefAnalysisResponse.model_validate({"goals": ["Goal 1"]})
+
+
+def test_brief_analysis_response_validation_invalid_risk_severity_in_risks_list():
+    """Ensure BriefAnalysisResponse fails when a risk in the risks list has invalid severity."""
+    payload = {
+        "summary": "Valid summary",
+        "recommended_next_action": "Do something",
+        "risks": [
+            {
+                "risk": "Some Risk",
+                "severity": "fatal",  # Invalid severity
+                "reason": "Some reason",
+            }
+        ],
+    }
+    with pytest.raises(ValidationError):
+        BriefAnalysisResponse.model_validate(payload)
 
 
 # =====================================================================
@@ -42,10 +66,20 @@ def test_risk_item_invalid_severity():
 # =====================================================================
 
 
+def test_get_llm_provider_caching():
+    """Ensure get_llm_provider returns a cached instance when called repeatedly."""
+    get_llm_provider.cache_clear()
+    provider_a = get_llm_provider()
+    provider_b = get_llm_provider()
+    assert provider_a is provider_b
+
+
 class ErrorLLMProvider(LLMProvider):
     """LLM provider simulation that always raises an error."""
 
-    async def analyze_brief(self, text: str) -> BriefAnalysisResponse:
+    async def analyze_brief(
+        self, text: str, correction_context: str | None = None
+    ) -> BriefAnalysisResponse:
         raise RuntimeError("LLM service unavailable")
 
 
@@ -78,9 +112,12 @@ async def test_decode_brief_success(client: AsyncClient, app: FastAPI):
         run_data = get_response.json()
         assert run_data["status"] == "completed"
         assert run_data["structured_result"] is not None
-        assert isinstance(run_data["structured_result"]["project_type"], str)
-        assert len(run_data["structured_result"]["project_type"]) > 0
+        assert isinstance(run_data["structured_result"]["summary"], str)
+        assert len(run_data["structured_result"]["summary"]) > 0
+        assert len(run_data["structured_result"]["goals"]) > 0
+        assert len(run_data["structured_result"]["deliverables"]) > 0
         assert len(run_data["structured_result"]["risks"]) > 0
+        assert isinstance(run_data["structured_result"]["recommended_next_action"], str)
         assert run_data["error_code"] is None
         assert run_data["error_message"] is None
     finally:
@@ -130,13 +167,15 @@ class FlakyLLMProvider(LLMProvider):
         self.fail_count = fail_count
         self.calls = 0
 
-    async def analyze_brief(self, text: str) -> BriefAnalysisResponse:
+    async def analyze_brief(
+        self, text: str, correction_context: str | None = None
+    ) -> BriefAnalysisResponse:
         self.calls += 1
         if self.calls <= self.fail_count:
             raise TimeoutError("Temporary API issue")
         # Return a valid mock response using FakeLLMProvider
         fake = FakeLLMProvider()
-        return await fake.analyze_brief(text)
+        return await fake.analyze_brief(text, correction_context=correction_context)
 
 
 @pytest.mark.asyncio
@@ -172,18 +211,115 @@ async def test_decode_brief_retry_success(client: AsyncClient, app: FastAPI):
 
 
 @pytest.mark.asyncio
+async def test_retrying_llm_provider_unit_scenarios():
+    """Unit tests verifying RetryingLLMProvider handles retries and non-retriable errors."""
+    from app.core.providers.retry import RetryingLLMProvider
+
+    # 1. Test ValidationError retry success
+    class ValidationFlakyProvider(LLMProvider):
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def analyze_brief(
+            self, text: str, correction_context: str | None = None
+        ) -> BriefAnalysisResponse:
+            self.calls += 1
+            if self.calls == 1:
+                raise ValidationError.from_exception_data(
+                    title="MockValidation", line_errors=[]
+                )
+            assert correction_context is not None
+            assert "MockValidation" in correction_context
+            return await FakeLLMProvider().analyze_brief(
+                text, correction_context=correction_context
+            )
+
+    flaky = ValidationFlakyProvider()
+    retry_provider = RetryingLLMProvider(
+        base_provider=flaky, max_attempts=3, timeout=5.0
+    )
+    res = await retry_provider.analyze_brief("test")
+    assert flaky.calls == 2
+    assert res is not None
+
+    # 2. Test retries exhausted on TimeoutError
+    class AlwaysTimeoutProvider(LLMProvider):
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def analyze_brief(
+            self, text: str, correction_context: str | None = None
+        ) -> BriefAnalysisResponse:
+            self.calls += 1
+            raise TimeoutError("Persistent API timeout")
+
+    always_timeout = AlwaysTimeoutProvider()
+    retry_timeout_provider = RetryingLLMProvider(
+        base_provider=always_timeout, max_attempts=2, timeout=5.0
+    )
+    with pytest.raises(TimeoutError):
+        await retry_timeout_provider.analyze_brief("test")
+    assert always_timeout.calls == 2
+
+    # 3. Test non-retriable exception fails immediately on attempt 1
+    class NonRetriableProvider(LLMProvider):
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def analyze_brief(
+            self, text: str, correction_context: str | None = None
+        ) -> BriefAnalysisResponse:
+            self.calls += 1
+            raise RuntimeError("Fatal database connection drop")
+
+    non_retriable = NonRetriableProvider()
+    retry_non_retriable = RetryingLLMProvider(
+        base_provider=non_retriable, max_attempts=3, timeout=5.0
+    )
+    with pytest.raises(RuntimeError, match="Fatal database connection drop"):
+        await retry_non_retriable.analyze_brief("test")
+    assert non_retriable.calls == 1  # No retries executed
+
+
+@pytest.mark.asyncio
+async def test_brief_input_validation(client: AsyncClient):
+    """Test that spam, short word count, or gibberish payloads are rejected by the service."""
+    invalid_payloads = [
+        "- - - - - - - - - - - - - - - - - -",
+        "Hello world",  # Fewer than 3 words
+        "We need a mobile app. aaaaaaaaaaaaaa bbbbbbbbbbbbb",  # Repetitive spam
+        "*** Hello *** !!! $$$ @@@ ### %%% ^&&& * * *",  # High punctuation ratio
+    ]
+    for text in invalid_payloads:
+        resp = await client.post("/api/v1/briefs", json={"text": text})
+        assert resp.status_code == 202
+        data = resp.json()
+        brief_id = data["id"]
+
+        # Wait for background processing
+        await asyncio.sleep(0.1)
+        get_resp = await client.get(f"/api/v1/briefs/{brief_id}")
+        assert get_resp.status_code == 200
+        run_data = get_resp.json()
+        assert run_data["status"] == "failed"
+        assert run_data["error_code"] == "InputValidationError"
+        assert run_data["error_message"] == SAFE_ERRORS["InputValidationError"]
+
+
+@pytest.mark.asyncio
 async def test_cleanup_service_zombie_tasks(db_session: AsyncSession):
     """Test that CleanupService fails tasks that are stuck in 'processing' status."""
     from datetime import UTC, datetime, timedelta
 
     from app.models.brief import Brief
+    from app.schemas.api import BriefStatus
     from app.services.cleanup_service import CleanupService
 
     # 1. Create a zombie brief manually in the DB
     old_time = datetime.now(UTC) - timedelta(minutes=5)
     zombie = Brief(
         input_text="Test zombie brief text that is long enough.",
-        status="processing",
+        status=BriefStatus.PROCESSING.value,
         started_at=old_time,
     )
     db_session.add(zombie)
@@ -201,7 +337,7 @@ async def test_cleanup_service_zombie_tasks(db_session: AsyncSession):
     result = await db_session.execute(stmt)
     updated_brief = result.scalar_one()
 
-    assert updated_brief.status == "failed"
+    assert updated_brief.status == BriefStatus.FAILED.value
     assert updated_brief.error_code == "TaskAbandoned"
     assert updated_brief.error_message == SAFE_ERRORS["TaskAbandoned"]
     assert updated_brief.finished_at is not None
@@ -212,7 +348,9 @@ async def test_decode_brief_rate_limit_error(client: AsyncClient, app: FastAPI):
     import httpx
     
     class RateLimitedLLMProvider(LLMProvider):
-        async def analyze_brief(self, text: str) -> BriefAnalysisResponse:
+        async def analyze_brief(
+            self, text: str, correction_context: str | None = None
+        ) -> BriefAnalysisResponse:
             request = httpx.Request("POST", "https://api.gemini.com/v1/models")
             response = httpx.Response(status_code=429, request=request)
             raise httpx.HTTPStatusError("Rate Limit Exceeded", request=request, response=response)
@@ -239,3 +377,86 @@ async def test_decode_brief_rate_limit_error(client: AsyncClient, app: FastAPI):
         assert run_data["error_message"] == SAFE_ERRORS["RateLimitError"]
     finally:
         app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_decode_brief_validation_error_handling(client: AsyncClient, app: FastAPI):
+    """Test that when LLM output raises ValidationError, it maps to a safe failed state."""
+    class MalformedLLMProvider(LLMProvider):
+        async def analyze_brief(
+            self, text: str, correction_context: str | None = None
+        ) -> BriefAnalysisResponse:
+            # Simulate raising Pydantic ValidationError when LLM returns malformed JSON
+            return BriefAnalysisResponse.model_validate({"invalid_field": "no summary"})
+
+    app.dependency_overrides[get_llm_provider] = lambda: MalformedLLMProvider()
+
+    try:
+        payload = {"text": "Some valid project brief text that meets length requirements."}
+        response = await client.post("/api/v1/briefs", json=payload)
+        assert response.status_code == 202
+        brief_id = response.json()["id"]
+
+        run_data = {}
+        for _ in range(10):
+            await asyncio.sleep(0.1)
+            get_response = await client.get(f"/api/v1/briefs/{brief_id}")
+            run_data = get_response.json()
+            if run_data["status"] in ["completed", "failed"]:
+                break
+
+        assert run_data["status"] == "failed"
+        assert run_data["error_code"] == "ValidationError"
+        assert run_data["error_message"] == SAFE_ERRORS["ValidationError"]
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_run_background_brief_decode_exception_logging(monkeypatch: pytest.MonkeyPatch):
+    """Ensure unhandled background execution exceptions are logged and sent to Sentry."""
+    from app.api.v1.briefs import run_background_brief_decode
+    from app.services.brief_service import BriefService
+
+    captured_exceptions = []
+    monkeypatch.setattr("sentry_sdk.capture_exception", lambda e: captured_exceptions.append(e))
+
+    async def mock_decode(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("Fatal database disconnect inside background task")
+
+    monkeypatch.setattr(BriefService, "decode_and_update_brief", mock_decode)
+
+    fake_provider = FakeLLMProvider()
+    await run_background_brief_decode(uuid.uuid4(), fake_provider)
+
+    assert len(captured_exceptions) == 1
+    assert isinstance(captured_exceptions[0], RuntimeError)
+    assert str(captured_exceptions[0]) == "Fatal database disconnect inside background task"
+
+
+@pytest.mark.asyncio
+async def test_llm_self_correction_on_validation_error():
+    """Test that RetryingLLMProvider passes previous ValidationError to base provider."""
+    class SelfCorrectingProvider(LLMProvider):
+        def __init__(self) -> None:
+            self.calls = 0
+            self.correction_received: str | None = None
+
+        async def analyze_brief(
+            self, text: str, correction_context: str | None = None
+        ) -> BriefAnalysisResponse:
+            self.calls += 1
+            if self.calls == 1:
+                raise ValidationError.from_exception_data(
+                    title="SelfCorrectionTest", line_errors=[]
+                )
+            self.correction_received = correction_context
+            return await FakeLLMProvider().analyze_brief(text)
+
+    provider = SelfCorrectingProvider()
+    retrying = RetryingLLMProvider(base_provider=provider, max_attempts=3, timeout=5.0)
+    res = await retrying.analyze_brief("Test brief text")
+    assert provider.calls == 2
+    assert provider.correction_received is not None
+    assert "SelfCorrectionTest" in provider.correction_received
+    assert res is not None

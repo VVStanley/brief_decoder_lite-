@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+from app.schemas.api import BriefStatus
 
 
 class Brief(Base):
@@ -21,7 +22,7 @@ class Brief(Base):
     status: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
-        default="pending",  # pending, processing, completed, failed
+        default=BriefStatus.PENDING.value,
     )
     input_text: Mapped[str] = mapped_column(Text, nullable=False)
     structured_result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
