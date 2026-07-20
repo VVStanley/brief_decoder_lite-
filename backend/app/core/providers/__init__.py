@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 from app.core.config import settings
 from app.core.providers.base import LLMProvider
 from app.core.providers.fake import FakeLLMProvider
@@ -5,6 +7,7 @@ from app.core.providers.gemini import GeminiLLMProvider
 from app.core.providers.retry import RetryingLLMProvider
 
 
+@lru_cache
 def get_llm_provider() -> LLMProvider:
     """Factory function to instantiate the configured LLM provider."""
     provider_name = settings.LLM_PROVIDER.lower()

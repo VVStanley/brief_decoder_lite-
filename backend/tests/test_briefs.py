@@ -66,6 +66,14 @@ def test_brief_analysis_response_validation_invalid_risk_severity_in_risks_list(
 # =====================================================================
 
 
+def test_get_llm_provider_caching():
+    """Ensure get_llm_provider returns a cached instance when called repeatedly."""
+    get_llm_provider.cache_clear()
+    provider_a = get_llm_provider()
+    provider_b = get_llm_provider()
+    assert provider_a is provider_b
+
+
 class ErrorLLMProvider(LLMProvider):
     """LLM provider simulation that always raises an error."""
 
