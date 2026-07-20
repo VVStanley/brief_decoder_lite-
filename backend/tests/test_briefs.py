@@ -1,4 +1,5 @@
 import asyncio
+import uuid
 from typing import cast
 
 import pytest
@@ -297,3 +298,25 @@ async def test_decode_brief_validation_error_handling(client: AsyncClient, app: 
         assert run_data["error_message"] == SAFE_ERRORS["ValidationError"]
     finally:
         app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_run_background_brief_decode_exception_logging(monkeypatch: pytest.MonkeyPatch):
+    """Ensure unhandled background execution exceptions are logged and sent to Sentry."""
+    from app.api.v1.briefs import run_background_brief_decode
+    from app.services.brief_service import BriefService
+
+    captured_exceptions = []
+    monkeypatch.setattr("sentry_sdk.capture_exception", lambda e: captured_exceptions.append(e))
+
+    async def mock_decode(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("Fatal database disconnect inside background task")
+
+    monkeypatch.setattr(BriefService, "decode_and_update_brief", mock_decode)
+
+    fake_provider = FakeLLMProvider()
+    await run_background_brief_decode(uuid.uuid4(), fake_provider)
+
+    assert len(captured_exceptions) == 1
+    assert isinstance(captured_exceptions[0], RuntimeError)
+    assert str(captured_exceptions[0]) == "Fatal database disconnect inside background task"

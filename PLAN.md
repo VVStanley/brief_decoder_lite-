@@ -16,7 +16,7 @@
   - Проверить структуру схемы ответа `BriefAnalysisResponse` (`project_type`, `budget_info`, `deadline_info`, `key_requirements`, `risks`), системный промпт (`prompts.py`) и типы на фронтенде (`contracts.ts`).
   - Устранить любые несоответствия или расхождения между ТЗ, Pydantic-схемой и моками в `polyfactory`.
 
-- [ ] **4. Логирование и отправка ошибок в Sentry для фоновой задачи**
+- [x] **4. Логирование и отправка ошибок в Sentry для фоновой задачи**
   - В `backend/app/api/v1/briefs.py` (`run_background_brief_decode`) заменить тихое подавление (`except Exception: pass`) на полноценный перехват и отправку в Sentry:
     ```python
     except Exception as e:

@@ -1,5 +1,7 @@
+import logging
 import uuid
 
+import sentry_sdk
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
 from app.core.providers import LLMProvider, get_llm_provider
@@ -7,6 +9,7 @@ from app.repositories import BriefRepository, get_brief_repository
 from app.schemas.api import BriefRequest, BriefResponse
 from app.services.brief_service import BriefService
 
+logger = logging.getLogger("app.api.v1.briefs")
 router = APIRouter(prefix="/briefs", tags=["Briefs"])
 
 
@@ -16,9 +19,9 @@ async def run_background_brief_decode(brief_id: uuid.UUID, provider: LLMProvider
     try:
         service = BriefService(repo, provider)
         await service.decode_and_update_brief(brief_id)
-    except Exception:
-        # Silence background execution exceptions to prevent task crashes
-        pass
+    except Exception as e:
+        logger.error(f"Background execution failed for brief {brief_id}: {e}", exc_info=True)
+        sentry_sdk.capture_exception(e)
 
 
 @router.post("", response_model=BriefResponse, status_code=202)
