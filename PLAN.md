@@ -35,12 +35,12 @@
   - Установить библиотеку `tenacity` (`poetry add tenacity`).
   - Переписать логику повторных попыток в `RetryingLLMProvider` с использованием `AsyncRetrying`, настроек задержек (`wait_exponential` / `wait_fixed`) и логгера событий.
 
-- [ ] **8. Замена `dynaconf` на `pydantic-settings`**
-  - Удалить `dynaconf` (`poetry remove dynaconf`) и добавить `pydantic-settings` (`poetry add pydantic-settings`).
-  - Переписать `backend/app/core/config.py` с использованием `BaseSettings`, поддержкой файлов `.env` / `settings.toml` и переопределений из системных переменных окружения.
-  - Очистить зависимости и тестовое окружение (`conftest.py`, `alembic/env.py`) от следов Dynaconf.
+- [-] **8. Замена `dynaconf` на `pydantic-settings` (Отменено по решению пользователя)**
+  - ~~Удалить `dynaconf` (`poetry remove dynaconf`) и добавить `pydantic-settings` (`poetry add pydantic-settings`).~~
+  - ~~Переписать `backend/app/core/config.py` с использованием `BaseSettings`, поддержкой файлов `.env` / `settings.toml` и переопределений из системных переменных окружения.~~
+  - ~~Очистить зависимости и тестовое окружение (`conftest.py`, `alembic/env.py`) от следов Dynaconf.~~
 
-- [ ] **9. Валидация и фильтрация входного текста брифа**
+- [x] **9. Валидация и фильтрация входного текста брифа**
   - В схеме `BriefRequest` и `BriefService` добавить проверки на наличие бессмысленных символов, спама или отсутствия реальных буквенно-цифровых слов.
   - Отклонять мусорный входной поток на раннем этапе до отправки запроса к ИИ-модели.
 

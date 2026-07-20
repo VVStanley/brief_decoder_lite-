@@ -268,6 +268,31 @@ async def test_retrying_llm_provider_unit_scenarios():
 
 
 @pytest.mark.asyncio
+async def test_brief_input_validation(client: AsyncClient):
+    """Test that spam, short word count, or gibberish payloads are rejected by the service."""
+    invalid_payloads = [
+        "- - - - - - - - - - - - - - - - - -",
+        "Hello world",  # Fewer than 3 words
+        "We need a mobile app. aaaaaaaaaaaaaa bbbbbbbbbbbbb",  # Repetitive spam
+        "*** Hello *** !!! $$$ @@@ ### %%% ^&&& * * *",  # High punctuation ratio
+    ]
+    for text in invalid_payloads:
+        resp = await client.post("/api/v1/briefs", json={"text": text})
+        assert resp.status_code == 202
+        data = resp.json()
+        brief_id = data["id"]
+
+        # Wait for background processing
+        await asyncio.sleep(0.1)
+        get_resp = await client.get(f"/api/v1/briefs/{brief_id}")
+        assert get_resp.status_code == 200
+        run_data = get_resp.json()
+        assert run_data["status"] == "failed"
+        assert run_data["error_code"] == "InputValidationError"
+        assert run_data["error_message"] == SAFE_ERRORS["InputValidationError"]
+
+
+@pytest.mark.asyncio
 async def test_cleanup_service_zombie_tasks(db_session: AsyncSession):
     """Test that CleanupService fails tasks that are stuck in 'processing' status."""
     from datetime import UTC, datetime, timedelta
